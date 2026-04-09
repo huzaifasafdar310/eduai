@@ -1,10 +1,11 @@
-import * as FileSystem from 'expo-file-system';
+import { readAsStringAsync } from 'expo-file-system/legacy';
 import mammoth from 'mammoth';
 import { decode } from 'base64-arraybuffer';
 
 export const docxToHTML = async (fileUri: string): Promise<string> => {
+  if (!fileUri) throw new Error('File URI is missing');
   try {
-    const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
+    const base64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
     const arrayBuffer = decode(base64);
     
     // Mammoth converts .docx to HTML

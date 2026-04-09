@@ -208,7 +208,15 @@ export default function TabLayout() {
                   router.push('/convert-to-pdf');
                 }} 
               />
-              <FabOption icon="images" label="Img to PDF" color="#EC4899" onPress={() => { setShowFabMenu(false); showToast('Coming Soon!', 'info'); }} />
+              <FabOption 
+                icon="document-text" 
+                label="Text Extractor" 
+                color="#EC4899" 
+                onPress={() => { 
+                  setShowFabMenu(false); 
+                  router.push('/extract-text'); 
+                }} 
+              />
             </View>
           </View>
         </Pressable>

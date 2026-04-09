@@ -1,7 +1,8 @@
-import * as FileSystem from 'expo-file-system';
+import { readAsStringAsync } from 'expo-file-system';
 
 export const textToHTML = async (fileUri: string): Promise<string> => {
-  const content = await FileSystem.readAsStringAsync(fileUri);
+  if (!fileUri) throw new Error('File URI is missing');
+  const content = await readAsStringAsync(fileUri);
   
   return `
     <!DOCTYPE html>

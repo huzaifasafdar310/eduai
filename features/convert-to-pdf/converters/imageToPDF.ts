@@ -1,7 +1,8 @@
-import * as FileSystem from 'expo-file-system';
+import { readAsStringAsync } from 'expo-file-system/legacy';
 
 export const imageToHTML = async (imageUri: string): Promise<string> => {
-  const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: FileSystem.EncodingType.Base64 });
+  if (!imageUri) throw new Error('Image URI is missing');
+  const base64 = await readAsStringAsync(imageUri, { encoding: 'base64' });
   const mimeType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
   
   return `

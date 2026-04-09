@@ -51,14 +51,49 @@ export const getAIResponse = async (prompt, systemMessage = "You are an educatio
         if (data.choices && data.choices.length > 0) {
             return data.choices[0].message.content;
         }
-        return "Thinking error. Please retry.";
+        
+        // If Groq fails, try Gemini as a robust fallback
+        console.warn("Groq failed, falling back to Gemini...");
+        return await getGeminiResponse(prompt, systemMessage);
     } catch (error) {
         console.error("Groq API Error:", error);
         // If network error, try rotating key
         if (currentKeyIndex < GROQ_KEYS.length) {
             return getAIResponse(prompt, systemMessage);
         }
-        throw error;
+        // Final fallback to Gemini
+        return await getGeminiResponse(prompt, systemMessage);
+    }
+};
+
+/**
+ * Gemini API Fallback
+ */
+export const getGeminiResponse = async (prompt, systemMessage = "You are an educational assistant.") => {
+    const apiKey = (process.env.EXPO_PUBLIC_GEMINI_API_KEY || "").trim();
+    if (!apiKey) return "Thinking error. Please retry.";
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: `${systemMessage}\n\nUser Question: ${prompt}` }]
+                }]
+            })
+        });
+
+        const data = await response.json();
+        if (data.candidates && data.candidates[0].content.parts.length > 0) {
+            return data.candidates[0].content.parts[0].text;
+        }
+        return "Thinking error (Gemini). Please retry.";
+    } catch (error) {
+        console.error("Gemini API Error:", error);
+        return "Thinking error. Please retry.";
     }
 };
 
