@@ -19,7 +19,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Progress from 'react-native-progress';
-import { getAcademicStudioAI } from '../../utils/api';
+import { useApp } from '@/context/AppContext';
+import { ocrService } from '@/services/OCRService';
 
 interface SelectedImage {
   uri: string;
@@ -61,6 +62,7 @@ const LANGUAGES: Language[] = [
 export default function ExtractTextScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { state, consumeCredit } = useApp();
 
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
   const [extractedText, setExtractedText] = useState<string>('');
@@ -170,9 +172,11 @@ export default function ExtractTextScreen() {
     setStatusMessage('Uploading to OCR Engine...');
     
     try {
-      // We process the OCR request directly against your free util function (OCR Engine 2 natively built-in)
-      const extractedStr = await getAcademicStudioAI(
-        "Return just the raw extracted text.", 
+      // Consume a credit for the transaction (Demonstrating global state)
+      consumeCredit();
+      
+      // Use the production-ready service layer
+      const extractedStr = await ocrService.extractTextFromImage(
         selectedImage.base64, 
         selectedImage.mimeType
       );
@@ -181,14 +185,14 @@ export default function ExtractTextScreen() {
       setStatusMessage('Text extracted successfully!');
       
       const cleanText = extractedStr.trim();
-      if (!cleanText || cleanText.includes("No text recovered") || cleanText.includes("Network connection issue")) {
+      if (!cleanText || cleanText.includes("No text recovered")) {
         Alert.alert('Extraction Note', cleanText);
         setExtractedText('');
         return;
       }
       setExtractedText(cleanText);
       addToRecent(cleanText);
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Extraction Failed', 'Something went wrong. Please try again.');
       console.error(error);
     } finally {
@@ -270,7 +274,10 @@ export default function ExtractTextScreen() {
         </View>
         
         <View style={styles.headerRightIcon}>
-          <Ionicons name="scan-outline" size={24} color="#2563EB" />
+          <View style={styles.creditsPill}>
+            <Ionicons name="flash" size={14} color="#F59E0B" />
+            <Text style={styles.creditsText}>{state.userCredits}</Text>
+          </View>
         </View>
       </View>
 
@@ -554,4 +561,20 @@ const styles = StyleSheet.create({
   recentViewBtn: { backgroundColor: '#2563EB', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, justifyContent: 'center' },
   recentViewBtnText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
   recentDeleteBtn: { borderWidth: 1.5, borderColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  creditsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  creditsText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#D97706',
+  },
 });

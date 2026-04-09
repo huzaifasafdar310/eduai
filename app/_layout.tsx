@@ -2,6 +2,8 @@ import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { AppProvider } from '@/context/AppContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
 import { LogBox } from 'react-native';
@@ -18,20 +20,24 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <LanguageProvider>
-          <ToastProvider>
-             <Stack screenOptions={{ headerShown: false }}>
-               <Stack.Screen name="index" />
-               <Stack.Screen name="login" />
-               <Stack.Screen name="register" />
-               <Stack.Screen name="onboarding" />
-               <Stack.Screen name="(tabs)" />
-             </Stack>
-          </ToastProvider>
-        </LanguageProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <ToastProvider>
+                 <Stack screenOptions={{ headerShown: false }}>
+                   <Stack.Screen name="index" />
+                   <Stack.Screen name="login" />
+                   <Stack.Screen name="register" />
+                   <Stack.Screen name="onboarding" />
+                   <Stack.Screen name="(tabs)" />
+                 </Stack>
+              </ToastProvider>
+            </LanguageProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

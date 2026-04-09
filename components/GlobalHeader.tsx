@@ -1,4 +1,5 @@
 import { useTheme } from '@/context/ThemeContext';
+import { useApp } from '@/context/AppContext';
 import { COLORS } from '@/hooks/use-app-theme';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import React, { useEffect } from 'react';
@@ -17,6 +18,7 @@ import { ThemedText } from './themed-text';
 
 export const GlobalHeader = () => {
   const { theme: themeName, toggleTheme, isDark } = useTheme();
+  const { state } = useApp();
   const theme = COLORS[themeName];
 
   // 🌗 Toggle Animation Logic
@@ -139,6 +141,11 @@ export const GlobalHeader = () => {
       </Animated.View>
 
       <View style={styles.rightSection}>
+        <View style={[styles.creditsBox, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#FFFBEB', borderColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7' }]}>
+           <Ionicons name="flash" size={12} color="#F59E0B" />
+           <Text style={styles.creditsLabel}>{state.userCredits}</Text>
+        </View>
+        
         <TouchableOpacity 
           onPress={() => setNotifModal(true)}
           activeOpacity={0.7} 
@@ -336,4 +343,18 @@ const styles = StyleSheet.create({
   itemIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   itemTitle: { fontSize: 14, fontWeight: '800', opacity: 0.95 },
   itemDesc: { fontSize: 11, opacity: 0.7, marginTop: 2 },
+  creditsBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  creditsLabel: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#D97706',
+  },
 });
