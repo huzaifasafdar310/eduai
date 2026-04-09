@@ -20,6 +20,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Progress from 'react-native-progress';
 import { useApp } from '@/context/AppContext';
+import { useUserActivity } from '@/context/UserActivityContext';
 import { ocrService } from '@/services/OCRService';
 
 interface SelectedImage {
@@ -63,6 +64,8 @@ export default function ExtractTextScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { state, consumeCredit } = useApp();
+  const { logActivity, startSession, endSession } = useUserActivity();
+  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
 
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
   const [extractedText, setExtractedText] = useState<string>('');
@@ -86,6 +89,19 @@ export default function ExtractTextScreen() {
     }
     return () => clearInterval(interval);
   }, [isExtracting, progress]);
+
+  // Session Tracking
+  useEffect(() => {
+    const initSession = async () => {
+      const id = await startSession('ocr');
+      setCurrentSessionId(id);
+    };
+    initSession();
+
+    return () => {
+      endSession(currentSessionId);
+    };
+  }, []);
 
   // Pick Image (Gallery)
   const pickFromGallery = async () => {
@@ -192,6 +208,9 @@ export default function ExtractTextScreen() {
       }
       setExtractedText(cleanText);
       addToRecent(cleanText);
+      
+      // 📊 Log Activity for Student Dashboard
+      logActivity('ocr', `Extracted ${selectedImage.fileName}`, 100);
     } catch (error: any) {
       Alert.alert('Extraction Failed', 'Something went wrong. Please try again.');
       console.error(error);

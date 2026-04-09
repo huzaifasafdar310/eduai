@@ -3,6 +3,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { AppProvider } from '@/context/AppContext';
+import { UserActivityProvider } from '@/context/UserActivityContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
@@ -22,7 +23,8 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <SafeAreaProvider>
+        <UserActivityProvider>
+          <SafeAreaProvider>
           <ThemeProvider>
             <LanguageProvider>
               <ToastProvider>
@@ -37,6 +39,7 @@ export default function RootLayout() {
             </LanguageProvider>
           </ThemeProvider>
         </SafeAreaProvider>
+        </UserActivityProvider>
       </AppProvider>
     </ErrorBoundary>
   );
