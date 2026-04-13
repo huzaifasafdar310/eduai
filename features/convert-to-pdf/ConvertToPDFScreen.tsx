@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { 
   View, 
   Text, 
@@ -15,20 +16,51 @@ import { useRouter } from 'expo-router';
 import { usePDFConverter, ConversionSource } from './hooks/usePDFConverter';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
+import { activityService } from '@/services/activityService';
+import { format } from 'date-fns';
 
 type ConversionItem = { id: string; name: string; date: string; size: string; uri: string };
 
-export default function ConvertToPDFScreen() {
+function ConvertToPDFScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { convertToPDF, downloadPDF, isConverting: hookIsConverting, pdfUri } = usePDFConverter();
   
   const [selectedFile, setSelectedFile] = useState<{name: string, size?: string | number, source: ConversionSource} | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [recentConversions, setRecentConversions] = useState<ConversionItem[]>([]);
 
-  const [recentConversions, setRecentConversions] = useState<ConversionItem[]>([
-    { id: '1', name: 'Biology_Notes.pdf', date: 'Oct 24, 2023', size: '3.2 MB', uri: 'mock-uri-1' },
-    { id: '2', name: 'Chemistry_Lab_Report.pdf', date: 'Oct 22, 2023', size: '1.5 MB', uri: 'mock-uri-2' },
-  ]);
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      setIsHistoryLoading(true);
+      const data = await activityService.fetchActivitiesByType('pdf_convert');
+      const mapped: ConversionItem[] = data.map(item => {
+        let details = { fileName: 'Unknown', size: 'Unknown', uri: '' };
+        try {
+          details = JSON.parse(item.details);
+        } catch (e) {
+          details.fileName = item.details; // fallback
+        }
+        
+        return {
+          id: item.id || Math.random().toString(),
+          name: details.fileName || 'Document.pdf',
+          date: format(new Date(item.created_at), 'MMM dd, yyyy'),
+          size: details.size || 'Unknown',
+          uri: details.uri || ''
+        };
+      });
+      setRecentConversions(mapped);
+    } catch (error) {
+      console.error('Error fetching conversion history:', error);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
 
   // FIXED: Document Picker Auto-Downloads Instead of Selecting
   const handleUploadClick = async () => {
@@ -55,7 +87,18 @@ export default function ConvertToPDFScreen() {
 
   const handleConvertClick = async () => {
     if (!selectedFile) return;
-    await convertToPDF(selectedFile.source, false);
+    const result = await convertToPDF(selectedFile.source, false);
+    
+    // Log activity on success
+    if (result && selectedFile) {
+      const fileName = selectedFile.name.replace(/\.[^/.]+$/, "") + ".pdf";
+      await activityService.logActivity('pdf_convert', JSON.stringify({
+        fileName: fileName,
+        size: selectedFile.size,
+        uri: result // assuming result is the URI
+      }));
+      fetchHistory(); // refresh list
+    }
   };
 
   const handleDownload = (item: ConversionItem) => {
@@ -197,35 +240,45 @@ export default function ConvertToPDFScreen() {
         {/* 7. Recent Conversions Section */}
         <Text style={styles.sectionTitle}>RECENT CONVERSIONS</Text>
         <View style={styles.recentContainer} pointerEvents="box-none">
-          {recentConversions.map(item => (
-            <View key={item.id} style={styles.recentItemCard}>
-              <View style={[styles.recentIconWrapper, { backgroundColor: '#FEF2F2' }]}>
-                <Ionicons name="document-text" size={24} color="#EF4444" />
-              </View>
-              <View style={styles.recentItemInfo}>
-                <Text style={styles.recentItemName}>{item.name}</Text>
-                <Text style={styles.recentItemDate}>{item.date} • {item.size}</Text>
-              </View>
-              
-              {/* FIXED: Recent Conversions Buttons Not Interactive */}
-              <View style={{ flexDirection: 'row', gap: 4 }} pointerEvents="box-none">
-                <TouchableOpacity 
-                  onPress={() => handleDownload(item)} 
-                  activeOpacity={0.7} 
-                  style={{ padding: 10 }}
-                >
-                  <Ionicons name="download-outline" size={20} color="#2563EB" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => handleDelete(item.id)} 
-                  activeOpacity={0.7} 
-                  style={{ padding: 10 }}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                </TouchableOpacity>
-              </View>
+          {isHistoryLoading ? (
+            <ActivityIndicator color="#2563EB" style={{ marginTop: 10 }} />
+          ) : recentConversions.length === 0 ? (
+            <View style={styles.emptyHistory}>
+              <Ionicons name="time-outline" size={40} color="#CBD5E1" />
+              <Text style={styles.emptyText}>No recent conversions found</Text>
             </View>
-          ))}
+          ) : (
+            recentConversions.map(item => (
+              <View key={item.id} style={styles.recentItemCard}>
+                <View style={[styles.recentIconWrapper, { backgroundColor: '#FEF2F2' }]}>
+                  <Ionicons name="document-text" size={24} color="#EF4444" />
+                </View>
+                <View style={styles.recentItemInfo}>
+                  <Text style={styles.recentItemName}>{item.name}</Text>
+                  <Text style={styles.recentItemDate}>{item.date} • {item.size}</Text>
+                </View>
+                
+                <View style={{ flexDirection: 'row', gap: 4 }} pointerEvents="box-none">
+                  {item.uri ? (
+                    <TouchableOpacity 
+                      onPress={() => handleDownload(item)} 
+                      activeOpacity={0.7} 
+                      style={{ padding: 10 }}
+                    >
+                      <Ionicons name="download-outline" size={20} color="#2563EB" />
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity 
+                    onPress={() => handleDelete(item.id)} 
+                    activeOpacity={0.7} 
+                    style={{ padding: 10 }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
       </ScrollView>
@@ -542,4 +595,28 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 4,
   },
+  emptyHistory: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
 });
+
+export default function ConvertToPDFScreenWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <ConvertToPDFScreen />
+    </ErrorBoundary>
+  );
+}

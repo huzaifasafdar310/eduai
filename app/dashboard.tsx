@@ -1,6 +1,16 @@
 import React from 'react';
 import { AnalyticsScreen } from '../features/analytics/AnalyticsScreen';
 
-export default function DashboardPage() {
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+function DashboardPage() {
   return <AnalyticsScreen />;
+}
+
+export default function DashboardWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <DashboardPage />
+    </ErrorBoundary>
+  );
 }

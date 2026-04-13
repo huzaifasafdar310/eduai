@@ -1,6 +1,6 @@
 import { supabase } from '../utils/supabase';
 
-export type ActivityType = 'math' | 'quiz' | 'essay' | 'grammar' | 'summarizer' | 'ocr' | 'pdf_convert';
+export type ActivityType = 'math' | 'quiz' | 'writer' | 'grammar' | 'summarizer' | 'ocr' | 'pdf_convert';
 
 export interface UserActivity {
   id?: string;
@@ -146,6 +146,32 @@ class ActivityService {
     } catch (err) {
       console.error('Fetch dashboard data error:', err);
       return { activities: [], sessions: [] };
+    }
+  }
+
+  /**
+   * Fetches activities filtered by a specific type.
+   */
+  async fetchActivitiesByType(type: ActivityType) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('user_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('type', type)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn(`Supabase fetchActivitiesByType(${type}) error:`, error.message);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.error(`Fetch activities by type (${type}) error:`, err);
+      return [];
     }
   }
 }

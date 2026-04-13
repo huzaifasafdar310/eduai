@@ -81,9 +81,11 @@ export const usePDFConverter = () => {
 
       const { uri } = await Print.printToFileAsync({ html });
       setPdfUri(uri);
+      return uri;
     } catch (err: any) {
       setError(err.message || 'Conversion failed');
       console.error('Conversion process error:', err);
+      return null;
     } finally {
       setIsConverting(false);
     }

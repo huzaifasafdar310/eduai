@@ -65,12 +65,16 @@ export function UserActivityProvider({ children }: { children: ReactNode }) {
       ? scoresWithValues.reduce((a, b) => a + (b.score || 0), 0) / scoresWithValues.length 
       : 0;
 
+    const completionRate = sessions.length > 0 
+      ? Math.min(100, Math.round((totalTasks / sessions.length) * 100)) 
+      : (totalTasks > 0 ? 100 : 0);
+
     return {
       totalTasks,
       totalStudyTime,
       streak,
       avgAccuracy,
-      completionRate: totalTasks > 0 ? 100 : 0, 
+      completionRate,
     };
   };
 

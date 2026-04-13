@@ -1,4 +1,5 @@
 import { RichTextRenderer } from '@/components/RichTextRenderer';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useLanguage } from '@/context/LanguageContext';
@@ -28,7 +29,7 @@ import {
   Image
 } from 'react-native';
 
-export default function ToolScreen() {
+function ToolScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { theme: themeName, isDark } = useTheme();
@@ -977,6 +978,7 @@ export default function ToolScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 100 },
@@ -1147,3 +1149,11 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
 });
+
+export default function ToolScreenWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <ToolScreen />
+    </ErrorBoundary>
+  );
+}

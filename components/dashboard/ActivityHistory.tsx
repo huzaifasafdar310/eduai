@@ -13,7 +13,7 @@ const getActivityIcon = (type: ActivityType) => {
   switch (type) {
     case 'math': return { name: 'calculator-outline', color: '#10B981' };
     case 'quiz': return { name: 'help-circle-outline', color: '#3B82F6' };
-    case 'essay': return { name: 'document-text-outline', color: '#F59E0B' };
+    case 'writer': return { name: 'document-text-outline', color: '#F59E0B' };
     case 'grammar': return { name: 'language-outline', color: '#6366F1' };
     case 'summarizer': return { name: 'library-outline', color: '#EC4899' };
     default: return { name: 'flash-outline', color: '#8B5CF6' };

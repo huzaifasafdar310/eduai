@@ -36,25 +36,39 @@ export const PerformanceChart = ({ title, data, type = 'line' }: ChartProps) => 
     },
   };
 
-  const ChartComponent = type === 'line' ? LineChart : BarChart;
-
   return (
     <View style={[styles.container, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]}>
       <Text style={[styles.title, { color: theme.text }]}>{title.toUpperCase()}</Text>
-      <ChartComponent
-        data={data}
-        width={width - 40} // from react-native
-        height={220}
-        yAxisLabel=""
-        yAxisSuffix="m"
-        chartConfig={chartConfig}
-        bezier={type === 'line'}
-        style={{
-          marginVertical: 8,
-          borderRadius: 16,
-        }}
-        fromZero
-      />
+      {type === 'line' ? (
+        <LineChart
+          data={data}
+          width={width - 40}
+          height={220}
+          yAxisLabel=""
+          yAxisSuffix="m"
+          chartConfig={chartConfig}
+          bezier
+          style={{
+            marginVertical: 8,
+            borderRadius: 16,
+          }}
+          fromZero
+        />
+      ) : (
+        <BarChart
+          data={data}
+          width={width - 40}
+          height={220}
+          yAxisLabel=""
+          yAxisSuffix="m"
+          chartConfig={chartConfig}
+          style={{
+            marginVertical: 8,
+            borderRadius: 16,
+          }}
+          fromZero
+        />
+      )}
     </View>
   );
 };

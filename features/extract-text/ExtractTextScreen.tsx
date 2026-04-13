@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { 
   View, 
   Text, 
@@ -16,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Progress from 'react-native-progress';
 import { useApp } from '@/context/AppContext';
@@ -60,7 +61,7 @@ const LANGUAGES: Language[] = [
   { label: 'Chinese', code: 'chi_sim', flag: '🇨🇳' },
 ];
 
-export default function ExtractTextScreen() {
+function ExtractTextScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { state, consumeCredit } = useApp();
@@ -77,7 +78,7 @@ export default function ExtractTextScreen() {
 
   // Fake Progress Bar Timer
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isExtracting && progress < 85) {
       interval = setInterval(() => {
         setProgress((old) => {
@@ -229,7 +230,12 @@ export default function ExtractTextScreen() {
   // Save TXT
   const saveAsTxt = async () => {
     const fileName = `extracted_${Date.now()}.txt`;
-    const filePath = FileSystem.documentDirectory + fileName;
+    const docDir = FileSystem.documentDirectory;
+    if (!docDir) {
+      Alert.alert('Error', 'Could not access document directory');
+      return;
+    }
+    const filePath = docDir + fileName;
     await FileSystem.writeAsStringAsync(filePath, extractedText);
     await Sharing.shareAsync(filePath, {
       mimeType: 'text/plain',
@@ -597,3 +603,11 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
 });
+
+export default function ExtractTextScreenWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <ExtractTextScreen />
+    </ErrorBoundary>
+  );
+}

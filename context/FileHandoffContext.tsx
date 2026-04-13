@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 /**
  * 📄 File Data Handoff Type Definition
@@ -31,6 +31,16 @@ export function FileHandoffProvider({ children }: { children: ReactNode }) {
   const consumeFile = () => {
     setPendingFile(null);
   };
+
+  useEffect(() => {
+    if (pendingFile) {
+      const timer = setTimeout(() => {
+        setPendingFile(null);
+        console.log('File handoff auto-cleared after timeout');
+      }, 30000); // 30 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [pendingFile]);
 
   return (
     <FileHandoffContext.Provider value={{ pendingFile, setPendingFile, consumeFile }}>

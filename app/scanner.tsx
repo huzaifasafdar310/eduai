@@ -1,3 +1,4 @@
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/context/ThemeContext';
@@ -34,7 +35,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export default function ScannerScreen() {
+function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const { theme: themeName, isDark } = useTheme();
   const theme = COLORS[themeName];
@@ -431,3 +432,11 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: 'rgba(59, 130, 246, 0.3)', borderColor: '#3B82F6', borderWidth: 1 },
   filterBtnLabel: { color: '#AAA', fontSize: 11, fontWeight: '800', marginTop: 6 }
 });
+
+export default function ScannerWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <ScannerScreen />
+    </ErrorBoundary>
+  );
+}
