@@ -1,4 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
+import { useFileHandoff } from '@/context/FileHandoffContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -15,10 +16,11 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  DeviceEventEmitter,
   Dimensions,
-  Modal, Pressable,
-  StyleSheet, TouchableOpacity,
+  Modal, 
+  Pressable,
+  StyleSheet, 
+  TouchableOpacity,
   View
 } from 'react-native';
 import Animated, {
@@ -36,6 +38,7 @@ export default function TabLayout() {
   const theme = COLORS[themeName];
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { setPendingFile } = useFileHandoff();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -103,11 +106,12 @@ export default function TabLayout() {
       const mimeType = file.mimeType || "image/jpeg";
 
       if (activeToolId) {
-        DeviceEventEmitter.emit('fileUploaded', {
-          toolId: activeToolId,
+        setPendingFile({
+          targetToolId: activeToolId,
           fileName: fileName,
           base64: base64Data,
-          mimeType: mimeType
+          mimeType: mimeType,
+          uri: file.uri
         });
       }
 

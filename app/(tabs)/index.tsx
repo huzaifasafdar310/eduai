@@ -41,7 +41,7 @@ const STUDIO_ACTIONS = [
   { id: 'summarizer', label: 'SUMMARIZER', icon: 'library', color: '#EC4899' },
 ];
 
-export default function Dashboard() {
+export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { theme: themeName, isDark } = useTheme();
   const theme = COLORS[themeName];

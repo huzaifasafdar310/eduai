@@ -15,8 +15,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  DeviceEventEmitter
 } from 'react-native';
+import { useFileHandoff } from '@/context/FileHandoffContext';
 import Animated, {
   Easing,
   interpolate,
@@ -40,6 +40,7 @@ export default function ScannerScreen() {
   const theme = COLORS[themeName];
   const router = useRouter();
   const { toolId } = useLocalSearchParams();
+  const { setPendingFile } = useFileHandoff();
   
   const cameraRef = useRef<CameraView>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -161,11 +162,12 @@ export default function ScannerScreen() {
       const targetTool = String(toolId || 'solver');
       console.log("Scanner Logic Target Tool:", targetTool);
 
-      DeviceEventEmitter.emit('fileUploaded', {
-        toolId: targetTool,
+      setPendingFile({
+        targetToolId: targetTool,
         fileName: `Scan_${Date.now()}.jpg`,
         base64: manipResult.base64,
-        mimeType: 'image/jpeg'
+        mimeType: 'image/jpeg',
+        uri: capturedImage
       });
 
       // Small delay ensures event is processed before unmounting

@@ -11,16 +11,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useDashboardData } from '../hooks/useDashboardData';
-import { useTheme } from '../context/ThemeContext';
-import { COLORS } from '../hooks/use-app-theme';
-import { StatCard } from '../components/dashboard/StatCard';
-import { PerformanceChart } from '../components/dashboard/PerformanceChart';
-import { ActivityHistory } from '../components/dashboard/ActivityHistory';
-import { AIInsightsCard } from '../components/dashboard/AIInsightsCard';
-import { useUserActivity } from '../context/UserActivityContext';
+import { useDashboardData } from '../../hooks/useDashboardData';
+import { useTheme } from '../../context/ThemeContext';
+import { COLORS } from '../../hooks/use-app-theme';
+import { StatCard } from '../../components/dashboard/StatCard';
+import { PerformanceChart } from '../../components/dashboard/PerformanceChart';
+import { ActivityHistory } from '../../components/dashboard/ActivityHistory';
+import { AIInsightsCard } from '../../components/dashboard/AIInsightsCard';
+import { useUserActivity } from '../../context/UserActivityContext';
 
-export const DashboardScreen = () => {
+/**
+ * High-fidelity Analytics Dashboard Screen.
+ * Provides student insights, performance metrics, and activity history.
+ */
+export const AnalyticsScreen = () => {
   const { theme: themeName, isDark } = useTheme();
   const theme = COLORS[themeName];
   const router = useRouter();
@@ -56,7 +60,7 @@ export const DashboardScreen = () => {
         >
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Dashboard</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Analytics Dashboard</Text>
         <TouchableOpacity onPress={refreshStats} style={styles.refreshBtn}>
           <Ionicons name="refresh" size={20} color={theme.primary} />
         </TouchableOpacity>
@@ -129,4 +133,3 @@ const styles = StyleSheet.create({
   ctaBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
   ctaText: { color: '#FFF', fontSize: 14, fontWeight: '800', letterSpacing: 1 },
 });
-

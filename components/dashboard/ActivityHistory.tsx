@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { COLORS } from '../../hooks/use-app-theme';
-import { UserActivity, ActivityType } from '../../services/analyticsService';
+import { UserActivity, ActivityType } from '../../services/activityService';
 
 interface ActivityHistoryProps {
   activities: UserActivity[];

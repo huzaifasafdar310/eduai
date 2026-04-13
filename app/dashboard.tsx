@@ -1,6 +1,6 @@
 import React from 'react';
-import { DashboardScreen } from '../screens/DashboardScreen';
+import { AnalyticsScreen } from '../features/analytics/AnalyticsScreen';
 
 export default function DashboardPage() {
-  return <DashboardScreen />;
+  return <AnalyticsScreen />;
 }

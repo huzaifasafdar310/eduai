@@ -4,7 +4,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import { COLORS } from '@/hooks/use-app-theme';
-import { getAcademicStudioAI } from '@/utils/api';
+import { aiService } from '@/services/AIService';
+import { ocrService } from '@/services/OCRService';
 import { moderateScale, verticalScale } from '@/utils/responsive';
 import { supabase } from '@/utils/supabase';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,10 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp, Layout, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, withDelay } from 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
+import { useFileHandoff } from '@/context/FileHandoffContext';
 import {
   ActivityIndicator,
   Alert,
-  DeviceEventEmitter,
   ScrollView,
   Share,
   StyleSheet,
@@ -33,6 +34,7 @@ export default function ToolScreen() {
   const { theme: themeName, isDark } = useTheme();
   const theme = COLORS[themeName];
   const { t } = useLanguage();
+  const { pendingFile, consumeFile } = useFileHandoff();
 
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [base64Content, setBase64Content] = useState<string | null>(null);
@@ -163,11 +165,11 @@ export default function ToolScreen() {
   }, [id]);
 
   useEffect(() => {
-    const subscription = DeviceEventEmitter.addListener('fileUploaded', async (data) => {
-      if (data.toolId === id || !data.toolId || String(data.toolId) === String(id)) {
-        setUploadedFile(data.fileName);
-        setBase64Content(data.base64);
-        setMimeType(data.mimeType);
+    if (pendingFile && (pendingFile.targetToolId === id || !pendingFile.targetToolId)) {
+      const handleFile = async () => {
+        setUploadedFile(pendingFile.fileName);
+        setBase64Content(pendingFile.base64 || null);
+        setMimeType(pendingFile.mimeType);
         setAiResult(null);
         setSelectedAction(null);
 
@@ -175,20 +177,23 @@ export default function ToolScreen() {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             const uid = user.id;
-            await AsyncStorage.setItem(`eduai_file_${uid}_${id}`, data.fileName);
-            if (data.base64) {
-              await AsyncStorage.setItem(`eduai_base64_${uid}_${id}`, data.base64);
-              await AsyncStorage.setItem(`eduai_mime_${uid}_${id}`, data.mimeType);
+            await AsyncStorage.setItem(`eduai_file_${uid}_${id}`, pendingFile.fileName);
+            if (pendingFile.base64) {
+              await AsyncStorage.setItem(`eduai_base64_${uid}_${id}`, pendingFile.base64);
+              await AsyncStorage.setItem(`eduai_mime_${uid}_${id}`, pendingFile.mimeType);
             }
           }
         } catch (err) {
           console.error("Background save error:", err);
         }
-      }
-    });
-
-    return () => subscription.remove();
-  }, [id]);
+        
+        // Consume the file so it's not re-processed
+        consumeFile();
+      };
+      
+      handleFile();
+    }
+  }, [pendingFile, id]);
 
   const handleAIProcess = async (action: string) => {
     setProcessing(true);
@@ -235,9 +240,32 @@ export default function ToolScreen() {
       };
 
       const currentPromptPrefix = (prompts[id as string] || {})[action] || "Analyze the document.";
-      const currentPrompt = `${currentPromptPrefix}\n\nTopic/Context: ${manualText || 'Extracted from image'}`;
+      
+      // PHASE 1: Handle OCR if needed
+      let contextContent = manualText || "";
+      if (!manualText && base64Content) {
+        contextContent = await ocrService.extractTextFromImage(base64Content, mimeType || 'image/jpeg');
+      }
 
-      const response = await getAcademicStudioAI(currentPrompt, manualText || base64Content || "", manualText ? "text/plain" : (mimeType || "image/jpeg"));
+      if (!contextContent && !manualText) {
+        throw new Error("No content found to analyze.");
+      }
+
+      // PHASE 2: Deep Analysis via Consolidated AI Service
+      const academicSystemPrompt = "You are a professional Academic Studio Engine.";
+      const academicPrompt = `
+      STUDIO CONTEXT:
+      ${contextContent}
+      
+      TASK: ${currentPromptPrefix}
+      
+      REQUIREMENTS: 
+      1. Base your entire answer ON THE TEXT ABOVE.
+      2. Deliver the final professional solution immediately.
+      3. Use formatting marks (** and [HIGHLIGHT]) for key points.
+      `;
+
+      const response = await aiService.askQuestion(academicPrompt, academicSystemPrompt);
       setAiResult(response);
 
       // 💾 CLOUD SYNC FOR MULTI-DEVICE (Phase 2)
@@ -253,7 +281,7 @@ export default function ToolScreen() {
 
       await AsyncStorage.setItem(`eduai_result_${uid}_${id}`, response);
       await AsyncStorage.setItem(`eduai_action_${uid}_${id}`, action);
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Error:", error);
       setAiResult("Error connecting to AI. Please try again.");
     } finally {
@@ -269,7 +297,7 @@ export default function ToolScreen() {
       const uid = user?.id || "anon";
 
       const prompt = `Based on this previous result:\n\n${aiResult}\n\nAnswer this follow-up question: ${followUp}. Keep the same formatting style ([HIGHLIGHT], [STEP], etc.)`;
-      const response = await getAcademicStudioAI(prompt, "", "text/plain");
+      const response = await aiService.askQuestion(prompt, "You are a professional academic assistant.");
 
       const newResult = aiResult + "\n\n---\n**Follow-up Question:** " + followUp + "\n\n" + response;
       setAiResult(newResult);
@@ -811,7 +839,7 @@ export default function ToolScreen() {
                                   setProcessing(true);
                                   try {
                                     const evalPrompt = `Question: ${q.question}\nUser's Answer: ${userAnswers[idx]}\n\nEvaluate this answer critically as an academic supervisor. Highlight strong points in [HIGHLIGHT] and suggest improvements. Provide a score out of 10.`;
-                                    const result = await getAcademicStudioAI(evalPrompt, "", "text/plain");
+                                    const result = await aiService.askQuestion(evalPrompt, "You are a professional academic supervisor.");
                                     setUserAnswers({ ...userAnswers, [`eval_${idx}`]: result });
                                   } catch (e) {
                                     Alert.alert("Error", "Could not evaluate answer.");

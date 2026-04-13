@@ -13,6 +13,8 @@ LogBox.ignoreLogs(['[Reanimated] Reduced motion setting is enabled on this devic
 
 // import { registerForPushNotificationsAsync } from '@/utils/push-notifications';
 
+import { FileHandoffProvider } from '@/context/FileHandoffContext';
+
 export default function RootLayout() {
   useEffect(() => {
     // Request permission immediately on app startup
@@ -24,21 +26,23 @@ export default function RootLayout() {
     <ErrorBoundary>
       <AppProvider>
         <UserActivityProvider>
-          <SafeAreaProvider>
-          <ThemeProvider>
-            <LanguageProvider>
-              <ToastProvider>
-                 <Stack screenOptions={{ headerShown: false }}>
-                   <Stack.Screen name="index" />
-                   <Stack.Screen name="login" />
-                   <Stack.Screen name="register" />
-                   <Stack.Screen name="onboarding" />
-                   <Stack.Screen name="(tabs)" />
-                 </Stack>
-              </ToastProvider>
-            </LanguageProvider>
-          </ThemeProvider>
-        </SafeAreaProvider>
+          <FileHandoffProvider>
+            <SafeAreaProvider>
+            <ThemeProvider>
+              <LanguageProvider>
+                <ToastProvider>
+                   <Stack screenOptions={{ headerShown: false }}>
+                     <Stack.Screen name="index" />
+                     <Stack.Screen name="login" />
+                     <Stack.Screen name="register" />
+                     <Stack.Screen name="onboarding" />
+                     <Stack.Screen name="(tabs)" />
+                   </Stack>
+                </ToastProvider>
+              </LanguageProvider>
+            </ThemeProvider>
+          </SafeAreaProvider>
+          </FileHandoffProvider>
         </UserActivityProvider>
       </AppProvider>
     </ErrorBoundary>

@@ -12,20 +12,20 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
  * larger than the 2KB hardware limit (VITAL for production).
  */
 const CustomStorageAdapter = {
-  getItem: (key) => {
+  getItem: (key: string) => {
     if (Platform.OS === 'web') {
       return Promise.resolve(typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null);
     }
     return AsyncStorage.getItem(key);
   },
-  setItem: (key, value) => {
+  setItem: (key: string, value: string) => {
     if (Platform.OS === 'web') {
       if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
       return Promise.resolve();
     }
     return AsyncStorage.setItem(key, value);
   },
-  removeItem: (key) => {
+  removeItem: (key: string) => {
     if (Platform.OS === 'web') {
       if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
       return Promise.resolve();

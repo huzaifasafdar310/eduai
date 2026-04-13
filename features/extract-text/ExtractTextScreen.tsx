@@ -180,7 +180,7 @@ export default function ExtractTextScreen() {
     });
   };
 
-  // OCR Extraction (using utils/api.js instead of crashing tesseract.js)
+  // OCR Extraction (using ocrService instead of crashing tesseract.js)
   const extractText = async () => {
     if (!selectedImage || !selectedImage.base64) return;
     setIsExtracting(true);

@@ -5,7 +5,7 @@ import { readAsStringAsync, copyAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 import * as Print from 'expo-print';
-import { getAIResponse } from '../../../utils/api';
+import { aiService } from '../../../services/AIService';
 import { imageToHTML } from '../converters/imageToPDF';
 import { docxToHTML } from '../converters/docxToPDF';
 import { textToHTML } from '../converters/textToPDF';
@@ -60,7 +60,7 @@ export const usePDFConverter = () => {
           CONTENT:
           ${rawText}
         `;
-        const cleanedContent = await getAIResponse(AI_PROMPT, "You are a professional document formatter.");
+        const cleanedContent = await aiService.askQuestion(AI_PROMPT, "You are a professional document formatter.");
         
         html = `
           <!DOCTYPE html>
