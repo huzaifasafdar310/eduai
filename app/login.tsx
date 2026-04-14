@@ -108,60 +108,8 @@ export default function LoginScreen() {
     }
   }
 
-  // ----- Google OAuth Login -----
   async function handleGoogleLogin() {
-    setGoogleLoading(true);
-    try {
-      const redirectTo = makeRedirectUri({ scheme: 'app', path: 'auth/callback' });
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-
-      if (error) throw error;
-      if (!data.url) throw new Error('No OAuth URL returned from Supabase');
-
-      // Open the Google OAuth page in the system browser
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
-      if (result.type === 'success' && result.url) {
-        // Parse the returned URL to extract access_token and refresh_token
-        const url = result.url;
-        const hashParams = new URLSearchParams(url.includes('#') ? url.split('#')[1] : url.split('?')[1] || '');
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-
-        if (accessToken && refreshToken) {
-          const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (sessionError) throw sessionError;
-
-          if (sessionData.user) {
-            showToast('Signed in with Google!', 'success');
-            await navigateAfterLogin(sessionData.user.id);
-          }
-        } else {
-          showToast('Could not complete Google sign in. Please try again.', 'error');
-        }
-      } else if (result.type === 'cancel') {
-        // User closed the browser — no toast needed
-      }
-    } catch (e: any) {
-      showToast(e.message || 'Google sign in failed. Try again.', 'error');
-    } finally {
-      setGoogleLoading(false);
-    }
+    showToast('Google Sign In is coming soon!', 'info');
   }
 
   // ----- Forgot Password -----
