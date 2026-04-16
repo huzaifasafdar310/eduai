@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Dimensions, StatusBar, Switch, Share, Linking } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Dimensions, StatusBar, Switch, Share, Modal, TextInput } from 'react-native';
+import * as Linking from 'expo-linking';
+import { apiClient } from '@/services/apiClient';
 import { useRouter } from 'expo-router';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +10,7 @@ import { useFocusEffect as useExpoFocusEffect } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/context/ThemeContext';
+import { useApp } from '@/context/AppContext';
 import { COLORS } from '@/hooks/use-app-theme';
 import { supabase } from '@/utils/supabase';
 import { GlobalHeader } from '@/components/GlobalHeader';
@@ -19,10 +22,16 @@ export default function ProfileScreen() {
   const { theme: themeName, toggleTheme, isDark } = useTheme();
   const theme = COLORS[themeName];
   const { t, isRTL } = useLanguage();
+  const { state, refreshApiStatus } = useApp();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [taskCount, setTaskCount] = useState(0);
+
+  // Connection State
+  const [isGroqModalVisible, setGroqModalVisible] = useState(false);
+  const [groqKeyInput, setGroqKeyInput] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const fetchProfileAndStats = useCallback(async () => {
     setLoading(true);
@@ -86,6 +95,79 @@ export default function ProfileScreen() {
       t('export_data') || "Export Data",
       "Your data export request is processing. You will receive an email shortly with a secure download link.",
       [{ text: "OK" }]
+    );
+  };
+
+  const handleConnectGroq = async () => {
+    try {
+      await Linking.openURL("https://console.groq.com/keys");
+    } catch (err) {
+      Alert.alert("Link Error", "Could not open the browser. Please visit https://console.groq.com/keys manually.");
+    }
+  };
+
+  const handleConnectPlaceholder = (name: string, url: string) => {
+    Alert.alert(
+      "API Connection",
+      `Would you like to visit the official ${name} dashboard? No keys will be stored in this app.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Visit Site", onPress: () => Linking.openURL(url) }
+      ]
+    );
+  };
+
+  const handleVerifyGroq = async () => {
+    if (!groqKeyInput.trim()) return;
+    setIsVerifying(true);
+    try {
+      await apiClient.post('/api/keys/verify-groq', { key: groqKeyInput });
+      Alert.alert("Success", "Groq API connected successfully! You now have unlimited free usage.");
+      setGroqModalVisible(false);
+      setGroqKeyInput('');
+      await refreshApiStatus(); // Update global context for BYOK
+      fetchProfileAndStats(); // Refresh profile state
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || err.message || "Unknown error";
+      const status = err.response?.status;
+      
+      let friendlyTitle = "Verification Failed";
+      let friendlyMsg = errorMsg;
+
+      if (!status) {
+        friendlyTitle = "Server Connectivity Issue";
+        friendlyMsg = "Could not reach the EduAI backend. Please check if your internet is working and the backend server is running.";
+      } else if (status === 401) {
+        friendlyTitle = "Session Expired";
+        friendlyMsg = "Your session has expired. Please sign out and sign in again.";
+      } else if (status === 429) {
+        friendlyTitle = "Rate Limited";
+        friendlyMsg = "Too many attempts. Please wait a minute before trying again.";
+      }
+
+      Alert.alert(friendlyTitle, friendlyMsg);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleDisconnectGroq = () => {
+    Alert.alert(
+      "Disconnect Groq",
+      "This will remove your personal key. You will revert to using EduAI credits. Proceed?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Disconnect", style: "destructive", onPress: async () => {
+          try {
+            await apiClient.post('/api/keys/disconnect-groq');
+            await refreshApiStatus(); // Trigger BYOK setup gate redirect
+            fetchProfileAndStats();
+            Alert.alert("Disconnected", "Your personal API key has been removed.");
+          } catch (e) {
+            Alert.alert("Error", "Failed to disconnect.");
+          }
+        }}
+      ]
     );
   };
 
@@ -226,6 +308,31 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.section}>
+            <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>API Integrations</ThemedText>
+            <ActionItem 
+              icon={state.apiConnected ? "checkmark-circle" : "terminal-outline"} 
+              label="Connect Groq API" 
+              subLabel={state.apiConnected ? "Status: ACTIVE ⚡ (BYOK Authority)" : "Connect your personal Groq key to start"} 
+              color={state.apiConnected ? "#10B981" : "#F59E0B"} 
+              onPress={state.apiConnected ? handleDisconnectGroq : () => setGroqModalVisible(true)} 
+            />
+            <ActionItem 
+              icon="flash-outline" 
+              label="Connect OpenAI" 
+              subLabel="Optional high-performance model" 
+              color="#10B981" 
+              onPress={() => handleConnectPlaceholder("OpenAI", "https://platform.openai.com/api-keys")} 
+            />
+            <ActionItem 
+              icon="scan-outline" 
+              label="OCR Provider" 
+              subLabel="Connect specialized vision API" 
+              color="#3B82F6" 
+              onPress={() => handleConnectPlaceholder("OCR Space", "https://ocr.space/ocrapi")} 
+            />
+          </View>
+
+          <View style={styles.section}>
             <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>{t('app_info')}</ThemedText>
             <ActionItem 
               icon="share-social-outline" 
@@ -267,6 +374,70 @@ export default function ProfileScreen() {
             <Ionicons name="log-out" size={22} color="#EF4444" />
             <ThemedText style={styles.logoutText}>Sign Out Account</ThemedText>
           </TouchableOpacity>
+
+          {/* 🔗 GROQ CONNECTION MODAL */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isGroqModalVisible}
+            onRequestClose={() => setGroqModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+                <View style={styles.modalHeader}>
+                  <ThemedText style={styles.modalTitle}>Connect Groq Account</ThemedText>
+                  <TouchableOpacity onPress={() => setGroqModalVisible(false)}>
+                    <Ionicons name="close" size={24} color={theme.text} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <ThemedText style={[styles.modalStep, { color: theme.gray }]}>
+                    1. Direct Link: Open Groq Console to get your API Key.
+                  </ThemedText>
+                  <TouchableOpacity 
+                    style={[styles.externalLinkBtn, { backgroundColor: theme.primary + '15' }]}
+                    onPress={handleConnectGroq}
+                  >
+                    <Ionicons name="open-outline" size={18} color={theme.primary} />
+                    <ThemedText style={{ color: theme.primary, fontWeight: '700', marginLeft: 8 }}>Groq Keys Dashboard</ThemedText>
+                  </TouchableOpacity>
+
+                  <ThemedText style={[styles.modalStep, { color: theme.gray, marginTop: 20 }]}>
+                    2. Paste: Securely enter your key below.
+                  </ThemedText>
+                  <TextInput
+                    style={[styles.apiKeyInput, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9', color: theme.text, borderColor: theme.border }]}
+                    placeholder="gsk_..."
+                    placeholderTextColor={theme.gray}
+                    autoCapitalize="none"
+                    secureTextEntry={true}
+                    value={groqKeyInput}
+                    onChangeText={setGroqKeyInput}
+                  />
+
+                  <ThemedText style={styles.securityHint}>
+                    ⚡ Your key is verified on our server and stored securely. It will never be exposed on your device.
+                  </ThemedText>
+
+                  <TouchableOpacity 
+                    style={[styles.verifyBtn, { backgroundColor: groqKeyInput.length > 10 ? theme.primary : theme.gray }]}
+                    disabled={groqKeyInput.length <= 10 || isVerifying}
+                    onPress={handleVerifyGroq}
+                  >
+                    {isVerifying ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <>
+                        <ThemedText style={styles.verifyBtnText}>Verify & Complete Connection</ThemedText>
+                        <Ionicons name="checkmark-done" size={20} color="#FFF" style={{ marginLeft: 8 }} />
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
 
         </ScrollView>
       ) : (
@@ -340,7 +511,16 @@ const styles = StyleSheet.create({
   premiumSubtitle: { color: '#FFF', fontSize: 13, fontWeight: '600', opacity: 0.85, marginTop: 2 },
   footerBranding: { marginTop: 40, marginBottom: 20, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', opacity: 0.6 },
   footerText: { fontSize: 10, fontWeight: '700', marginLeft: 8, color: '#64748B', letterSpacing: 0.5, textTransform: 'uppercase' },
-  contactInfo: { marginTop: 10, padding: 15, borderRadius: 20, borderWidth: 1, gap: 10 },
-  contactRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   contactText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 30, maxHeight: '80%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  modalTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  modalStep: { fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  externalLinkBtn: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 16, marginTop: 12 },
+  apiKeyInput: { height: 60, borderRadius: 16, borderWidth: 1.5, paddingHorizontal: 20, marginTop: 12, fontSize: 16, fontWeight: '600' },
+  securityHint: { fontSize: 12, fontWeight: '600', opacity: 0.6, marginTop: 15, lineHeight: 18 },
+  verifyBtn: { height: 65, borderRadius: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 30, marginBottom: 10 },
+  verifyBtnText: { color: '#FFF', fontSize: 16, fontWeight: '900' },
 });

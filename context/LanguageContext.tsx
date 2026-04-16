@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { 
+  createContext, 
+  useContext, 
+  useState, 
+  useEffect, 
+  useCallback, 
+  useMemo 
+} from 'react';
 import { supabase } from '@/utils/supabase';
 import { TRANSLATIONS } from '@/constants/translations';
 

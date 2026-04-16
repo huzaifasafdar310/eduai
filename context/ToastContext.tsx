@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useRef, useCallback, useMemo } from 'react';
+import React, { 
+  createContext, 
+  useContext, 
+  useState, 
+  useRef, 
+  useCallback, 
+  useMemo 
+} from 'react';
 import { Animated, StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';

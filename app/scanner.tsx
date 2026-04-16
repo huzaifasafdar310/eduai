@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { useApp, useFileHandoff } from '@/context/AppContext';
+import { useApiGuard } from '@/context/ApiGuardContext';
 import Animated, {
   Easing,
   interpolate,
@@ -42,6 +43,7 @@ function ScannerScreen() {
   const router = useRouter();
   const { toolId } = useLocalSearchParams();
   const { setPendingFile } = useFileHandoff();
+  const { withApiAccess } = useApiGuard();
   
   const cameraRef = useRef<CameraView>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -151,6 +153,10 @@ function ScannerScreen() {
   };
 
   const finishScan = async () => {
+    withApiAccess(() => performFinishScan());
+  };
+
+  const performFinishScan = async () => {
     if (!capturedImage) return;
     setProcessing(true);
     try {

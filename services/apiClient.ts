@@ -49,7 +49,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const baseMessage = error.response?.data?.error || error.message;
-    console.error('[API Error]:', baseMessage);
+    const attemptedUrl = error.config?.url ? `${error.config.baseURL || ''}${error.config.url}` : 'Unknown URL';
+    
+    if (error.message === 'Network Error') {
+      console.error(`[Network Error]: Backend is unreachable at ${attemptedUrl}. Please verify your EXPO_PUBLIC_BACKEND_URL in .env matches your computer's local IP.`);
+    } else {
+      console.error('[API Error]:', baseMessage);
+    }
     
     // Auto-redirect or logout on 401 Unauthorized could be handled here
     if (error.response?.status === 401) {

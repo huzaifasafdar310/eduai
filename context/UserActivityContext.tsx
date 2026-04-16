@@ -1,4 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
+import React, { 
+  createContext, 
+  useContext, 
+  useState, 
+  useEffect, 
+  ReactNode, 
+  useCallback, 
+  useMemo, 
+  useRef 
+} from 'react';
 import { activityService, UserActivity, StudySession, ActivityType } from '../services/activityService';
 
 interface AnalyticsData {

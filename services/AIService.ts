@@ -47,7 +47,7 @@ class AIService {
     if (depth === 'quick') systemPrompt = 'Provide a brief, 3-sentence summary of the main points.';
     if (depth === 'detailed') systemPrompt = 'Provide a structured, detailed summary with bullet points.';
 
-    const { content } = await this.callBackend('/api/ai/chat', {
+    const result = await this.callBackend('/api/ai/chat', {
        model: 'mixtral-8x7b-32768',
        messages: [
          { role: 'system', content: systemPrompt },
@@ -55,7 +55,7 @@ class AIService {
        ],
        temperature: 0.3
     });
-    return content;
+    return result;
   }
 
   /**
@@ -65,7 +65,7 @@ class AIService {
     const systemPrompt = 'You are a helpful educational assistant. Answer clearly and concisely.';
     const userContent = context ? `Context:\n${context}\n\nQuestion: ${question}` : question;
 
-    const { content } = await this.callBackend('/api/ai/chat', {
+    const result = await this.callBackend('/api/ai/chat', {
       model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: systemPrompt },
@@ -73,7 +73,7 @@ class AIService {
       ],
       temperature: 0.7
     });
-    return content;
+    return result;
   }
 
   /**
@@ -83,7 +83,7 @@ class AIService {
     const systemPrompt = 'Generate a quiz in valid JSON format. Return ONLY a JSON array.';
     const userMessage = `Generate ${numQuestions} multiple choice questions about: ${topic}`;
 
-    const { content } = await this.callBackend('/api/ai/chat', {
+    const result = await this.callBackend('/api/ai/chat', {
       model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: systemPrompt },
@@ -91,7 +91,7 @@ class AIService {
       ],
       temperature: 0.5
     });
-    return content;
+    return result;
   }
 
   /**
@@ -129,7 +129,7 @@ class AIService {
   public async searchAndAnswer(query: string): Promise<string> {
     const systemPrompt = 'Answer using your research knowledge. Be thorough and cite key facts.';
 
-    const { content } = await this.callBackend('/api/ai/chat', {
+    const result = await this.callBackend('/api/ai/chat', {
       model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: systemPrompt },
@@ -137,7 +137,7 @@ class AIService {
       ],
       temperature: 0.6
     });
-    return content;
+    return result;
   }
 }
 

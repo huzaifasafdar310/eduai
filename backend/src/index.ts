@@ -6,6 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import aiRoutes from './routes/ai';
 import ocrRoutes from './routes/ocr';
 import profileRoutes from './routes/profile';
+import keyRoutes from './routes/keys';
 import { authMiddleware } from './middleware/auth';
 import './types'; // Import expanded Request types
 
@@ -19,9 +20,9 @@ app.use(helmet());
 app.use(express.json({ limit: '10mb' })); 
 
 // 2. CORS Strategy: Secure for Mobile
-// Since this is primarily a mobile API, we remove the permissive origin: '*' 
-// and restrict browser access to prevent cross-site scripting attacks on the backend.
-app.use(cors({ origin: false })); 
+// Since this is primarily a mobile API, we allow all origins (origin: true) 
+// to ensure various networking stacks (including emulators/real devices) can connect.
+app.use(cors({ origin: true })); 
 
 /**
  * ⚡ User-Based Rate Limiting (Production-Grade)
@@ -45,12 +46,13 @@ app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() 
 // 4. Protected Routes
 // Middleware Order: Auth -> Limiter -> Routes
 app.use('/api/user', authMiddleware, profileRoutes);
+app.use('/api/keys', authMiddleware, limiter, keyRoutes);
 app.use('/api/ai', authMiddleware, limiter, aiRoutes);
-app.use('/api/ocr', authMiddleware, limiter, ocrRoutes);
+ app.use('/api/ocr', authMiddleware, limiter, ocrRoutes);
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`--- EduAI Secure Backend Server Started ---`);
-  console.log(`🚀 Server listening on port ${PORT}`);
+  console.log(`🚀 Server listening on 0.0.0.0:${PORT}`);
   console.log(`🔒 Authentication: Supabase JWT (Bearer Token)`);
   console.log(`🛑 Rate Limiting: User-Based (Key: req.user.id)`);
   console.log(`------------------------------------------`);

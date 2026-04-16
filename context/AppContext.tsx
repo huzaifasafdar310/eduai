@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import React, { 
+  createContext, 
+  useContext, 
+  useState, 
+  ReactNode, 
+  useEffect, 
+  useCallback, 
+  useMemo 
+} from 'react';
 import { apiClient } from '../services/apiClient';
 import { useAuth } from './AuthContext';
 
@@ -16,12 +24,14 @@ interface AppState {
   userCredits: number;
   apiEngine: 'claude' | 'groq' | 'ocr.space';
   pendingFile: FileHandoffData | null;
+  apiConnected: boolean; // strict BYOK status
 }
 
 interface AppContextType {
   state: AppState;
   refreshCredits: () => Promise<void>;
-  updateLocalCredits: (newCredits: number) => void;
+  refreshApiStatus: () => Promise<void>;
+  syncCredits: (newCredits: number) => void;
   setEngine: (engine: AppState['apiEngine']) => void;
   // Handoff specific
   setPendingFile: (file: FileHandoffData | null) => void;
@@ -41,6 +51,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     userCredits: 0,
     apiEngine: 'groq',
     pendingFile: null,
+    apiConnected: false,
   });
 
   /**
@@ -59,14 +70,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated]);
 
-  // Sync credits on auth state change
+  /**
+   * Checks if the user has a personal API key connected (BYOK)
+   */
+  const refreshApiStatus = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const response = await apiClient.get('/api/keys/status');
+      setState((prev) => ({ ...prev, apiConnected: !!response.data?.isConnected }));
+    } catch (error) {
+       console.error('[App Service] Failed to sync API status:', error);
+       setState((prev) => ({ ...prev, apiConnected: false }));
+    }
+  }, [isAuthenticated]);
+
+  // Sync state on auth state change
   useEffect(() => {
     if (isAuthenticated) {
       refreshCredits();
+      refreshApiStatus();
     } else {
-      setState((prev) => ({ ...prev, userCredits: 0 }));
+      setState((prev) => ({ 
+        ...prev, 
+        userCredits: 0, 
+        apiConnected: false 
+      }));
     }
-  }, [isAuthenticated, refreshCredits]);
+  }, [isAuthenticated, refreshCredits, refreshApiStatus]);
 
   // File Handoff Auto-Clear Logic
   useEffect(() => {
@@ -79,8 +109,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [state.pendingFile]);
 
-  // Memoized actions to prevent unnecessary re-renders of consumers
-  const updateLocalCredits = useCallback((newCredits: number) => {
+  /**
+   * Authoritatively updates the local credit count from a backend response.
+   */
+  const syncCredits = useCallback((newCredits: number) => {
     setState((prev) => ({ ...prev, userCredits: newCredits }));
   }, []);
 
@@ -100,11 +132,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const contextValue = useMemo(() => ({
     state,
     refreshCredits,
-    updateLocalCredits,
+    refreshApiStatus,
+    syncCredits,
     setEngine,
     setPendingFile,
     consumeFile
-  }), [state, refreshCredits, updateLocalCredits, setEngine, setPendingFile, consumeFile]);
+  }), [state, refreshCredits, refreshApiStatus, syncCredits, setEngine, setPendingFile, consumeFile]);
 
   return (
     <AppContext.Provider value={contextValue}>

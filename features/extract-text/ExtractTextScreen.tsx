@@ -21,6 +21,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Progress from 'react-native-progress';
 import { useApp } from '@/context/AppContext';
+import { useApiGuard } from '@/context/ApiGuardContext';
 import { useUserActivity } from '@/context/UserActivityContext';
 import { ocrService } from '@/services/OCRService';
 
@@ -64,7 +65,8 @@ const LANGUAGES: Language[] = [
 function ExtractTextScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { state, consumeCredit } = useApp();
+  const { state, syncCredits } = useApp();
+  const { withApiAccess } = useApiGuard();
   const { logActivity, startSession, endSession } = useUserActivity();
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
 
@@ -183,17 +185,23 @@ function ExtractTextScreen() {
 
   // OCR Extraction (using ocrService instead of crashing tesseract.js)
   const extractText = async () => {
+    withApiAccess(() => performExtraction());
+  };
+
+  const performExtraction = async () => {
     if (!selectedImage || !selectedImage.base64) return;
     setIsExtracting(true);
     setProgress(0);
     setStatusMessage('Uploading to OCR Engine...');
     
     try {
-      // Consume a credit for the transaction (Demonstrating global state)
-      consumeCredit();
+      // (REMOVED: Client no longer decides credit consumption)
       
       // Use the production-ready service layer with built-in compression
-      const extractedStr = await ocrService.processAndExtract(selectedImage.uri);
+      const { text: extractedStr, remainingCredits } = await ocrService.processAndExtract(selectedImage.uri);
+      
+      // Authoritatively sync credits from backend response
+      syncCredits(remainingCredits);
       
       setProgress(100);
       setStatusMessage('Text extracted successfully!');

@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp, Layout, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, withDelay } from 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { useFileHandoff } from '@/context/AppContext';
+import { useApiGuard } from '@/context/ApiGuardContext';
 import {
   ActivityIndicator,
   Alert,
@@ -36,7 +37,7 @@ function ToolScreen() {
   const theme = COLORS[themeName];
   const { t } = useLanguage();
   const { pendingFile, consumeFile } = useFileHandoff();
-
+  const { withApiAccess } = useApiGuard();
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -136,7 +137,7 @@ function ToolScreen() {
   useEffect(() => {
     const loadToolState = async () => {
       setUploadedFile(null);
-      setBase64Content(null);
+      setFileUri(null);
       setMimeType(null);
       setAiResult(null);
       setSelectedAction(null);
@@ -197,6 +198,10 @@ function ToolScreen() {
   }, [pendingFile, id]);
 
   const handleAIProcess = async (action: string) => {
+    withApiAccess(() => performAIProcess(action));
+  };
+
+  const performAIProcess = async (action: string) => {
     setProcessing(true);
     setAiResult(null);
     setSelectedAction(action);

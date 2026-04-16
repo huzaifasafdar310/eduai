@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
-import { useFileHandoff } from '@/context/AppContext';
+import { useApp, useFileHandoff } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
@@ -41,6 +42,9 @@ export default function TabLayout() {
   const { setPendingFile } = useFileHandoff();
   const pathname = usePathname();
   const router = useRouter();
+  const { state } = useApp();
+  const { isAuthenticated } = useAuth();
+
 
   const [uploading, setUploading] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);

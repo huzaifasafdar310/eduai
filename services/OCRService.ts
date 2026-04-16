@@ -3,21 +3,20 @@ import * as ImageManipulator from 'expo-image-manipulator';
 
 /**
  * 🔍 OCRService: High-Performance Optical Character Recognition
- * Handles image optimization (resizing/compression) to minimize payload size and improve speed.
+ * Communicates with the authoritative backend and optimizes payloads.
  */
 class OCRService {
   /**
    * 🛠️ Compresses and resizes an image before extraction.
    * Targets a max dimension of 1200px and 70% quality for optimal balance.
-   * @param uri Local file URI from camera/picker.
    */
-  public async processAndExtract(uri: string): Promise<string> {
+  public async processAndExtract(uri: string): Promise<{ text: string; remainingCredits: number }> {
     try {
       console.log('[OCR Service] Pre-processing image (Resizing to 1200px max, 70% quality)...');
       
       const processed = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 1200 } }], // ImageManipulator preserves aspect ratio by default
+        [{ resize: { width: 1200 } }],
         {
           compress: 0.7,
           format: ImageManipulator.SaveFormat.JPEG,
@@ -39,25 +38,23 @@ class OCRService {
   }
 
   /**
-   * Primary extraction logic via proxy.
-   * @param base64Data Image Base64 data block (without prefix).
-   * @param mimeType Image filetype.
+   * Primary extraction logic via authoritative backend gateway.
+   * @returns { text, remainingCredits }
    */
-  public async extractTextFromImage(base64Data: string, mimeType: string = 'image/jpeg'): Promise<string> {
+  public async extractTextFromImage(base64Data: string, mimeType: string = 'image/jpeg'): Promise<{ text: string; remainingCredits: number }> {
     try {
       const response = await apiClient.post('/api/ocr/extract', {
         base64Data,
         mimeType,
       });
       
-      const text = response.data?.text;
+      const text = response.data?.text || 'No text recovered from OCR engine.';
+      const remainingCredits = response.data?.remainingCredits;
       
-      if (!text) {
-         return 'No text recovered from OCR engine.';
-      }
-      return text;
+      return { text, remainingCredits };
     } catch (error: any) {
-      throw new Error(`OCR Processing failed via proxy: ${error.message}`);
+      // Propagation of 402/429/500 errors from backend
+      throw error;
     }
   }
 }
