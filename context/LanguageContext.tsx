@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
 import { TRANSLATIONS } from '@/constants/translations';
 
@@ -37,7 +37,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const setLanguage = async (lang: any) => {
+  const setLanguage = useCallback(async (lang: any) => {
     setCurrentLanguage(lang);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -47,17 +47,19 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (e) {
       console.log('[LANG_CONTEXT_UPDATE_ERROR]', e);
     }
-  };
+  }, []);
 
-  const t = (key: string): string => {
+  const t = useCallback((key: string): string => {
     const langSet = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
     return langSet[key] || TRANSLATIONS.en[key] || key;
-  };
+  }, [currentLanguage]);
 
-  const isRTL = ['ur', 'ar'].includes(currentLanguage);
+  const isRTL = useMemo(() => ['ur', 'ar'].includes(currentLanguage), [currentLanguage]);
+
+  const value = useMemo(() => ({ currentLanguage, setLanguage, t, isRTL }), [currentLanguage, setLanguage, t, isRTL]);
 
   return (
-    <LanguageContext.Provider value={{ currentLanguage, setLanguage, t, isRTL }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

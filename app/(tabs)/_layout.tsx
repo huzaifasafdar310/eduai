@@ -1,5 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
-import { useFileHandoff } from '@/context/FileHandoffContext';
+import { useFileHandoff } from '@/context/AppContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback, useMemo } from 'react';
 import { Animated, StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +20,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(-150)).current;
 
-  const showToast = (msg: string, t: ToastType = 'info') => {
+  const showToast = useCallback((msg: string, t: ToastType = 'info') => {
     setMessage(msg);
     setType(t);
     setVisible(true);
@@ -42,7 +42,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         useNativeDriver: true,
       }).start(() => setVisible(false));
     }, duration);
-  };
+  }, [insets.top, slideAnim]);
+
+  const value = useMemo(() => ({ showToast }), [showToast]);
 
   const getIcon = () => {
     switch(type) {

@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp, Layout, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, withDelay } from 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
-import { useFileHandoff } from '@/context/FileHandoffContext';
+import { useFileHandoff } from '@/context/AppContext';
 import {
   ActivityIndicator,
   Alert,
@@ -38,7 +38,7 @@ function ToolScreen() {
   const { pendingFile, consumeFile } = useFileHandoff();
 
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
-  const [base64Content, setBase64Content] = useState<string | null>(null);
+  const [fileUri, setFileUri] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
@@ -150,13 +150,13 @@ function ToolScreen() {
         const storedFile = await AsyncStorage.getItem(`eduai_file_${uid}_${id}`);
         const storedResult = await AsyncStorage.getItem(`eduai_result_${uid}_${id}`);
         const storedAction = await AsyncStorage.getItem(`eduai_action_${uid}_${id}`);
-        const storedBase64 = await AsyncStorage.getItem(`eduai_base64_${uid}_${id}`);
+        const storedUri = await AsyncStorage.getItem(`eduai_uri_${uid}_${id}`);
         const storedMime = await AsyncStorage.getItem(`eduai_mime_${uid}_${id}`);
 
         if (storedFile) setUploadedFile(storedFile);
         if (storedResult) setAiResult(storedResult);
         if (storedAction) setSelectedAction(storedAction);
-        if (storedBase64) setBase64Content(storedBase64);
+        if (storedUri) setFileUri(storedUri);
         if (storedMime) setMimeType(storedMime);
       } catch (e) {
         console.error("Failed to load state", e);
@@ -169,7 +169,7 @@ function ToolScreen() {
     if (pendingFile && (pendingFile.targetToolId === id || !pendingFile.targetToolId)) {
       const handleFile = async () => {
         setUploadedFile(pendingFile.fileName);
-        setBase64Content(pendingFile.base64 || null);
+        setFileUri(pendingFile.uri || null);
         setMimeType(pendingFile.mimeType);
         setAiResult(null);
         setSelectedAction(null);
@@ -179,8 +179,8 @@ function ToolScreen() {
           if (user) {
             const uid = user.id;
             await AsyncStorage.setItem(`eduai_file_${uid}_${id}`, pendingFile.fileName);
-            if (pendingFile.base64) {
-              await AsyncStorage.setItem(`eduai_base64_${uid}_${id}`, pendingFile.base64);
+            if (pendingFile.uri) {
+              await AsyncStorage.setItem(`eduai_uri_${uid}_${id}`, pendingFile.uri);
               await AsyncStorage.setItem(`eduai_mime_${uid}_${id}`, pendingFile.mimeType);
             }
           }
@@ -244,8 +244,8 @@ function ToolScreen() {
       
       // PHASE 1: Handle OCR if needed
       let contextContent = manualText || "";
-      if (!manualText && base64Content) {
-        contextContent = await ocrService.extractTextFromImage(base64Content, mimeType || 'image/jpeg');
+      if (!manualText && fileUri) {
+        contextContent = await ocrService.processAndExtract(fileUri);
       }
 
       if (!contextContent && !manualText) {
@@ -374,11 +374,11 @@ function ToolScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     const uid = user?.id;
     setUploadedFile(null);
-    setBase64Content(null);
+    setFileUri(null);
     resetQuiz();
     if (uid) {
       await AsyncStorage.removeItem(`eduai_file_${uid}_${id}`);
-      await AsyncStorage.removeItem(`eduai_base64_${uid}_${id}`);
+      await AsyncStorage.removeItem(`eduai_uri_${uid}_${id}`);
       await AsyncStorage.removeItem(`eduai_result_${uid}_${id}`);
     }
   };

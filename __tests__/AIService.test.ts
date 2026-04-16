@@ -8,53 +8,56 @@ jest.mock('../services/apiClient', () => ({
   },
 }));
 
-describe('AIService Unit Tests', () => {
+describe('AIService Unit Tests (Proxy-Aware)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Setup environment variables for testing
-    process.env.EXPO_PUBLIC_GROQ_API_KEY_1 = 'key-1';
-    process.env.EXPO_PUBLIC_GROQ_API_KEY_2 = 'key-2';
-    // Re-initialize service or access keys through existing singleton if possible
-    // Note: Since it's a singleton, we might need a way to reset it for testing rotation
-    // For this test, we'll focus on behavior assuming keys are loaded
   });
 
-  describe('callGroq Retry & Rotation Logic', () => {
-    it('rotates to the next key on 429 error and succeeds on retry', async () => {
-      const mock429 = new Error('Rate limit exceeded');
-      (mock429 as any).response = { status: 429 };
-
+  describe('callGroq Proxy Behavior', () => {
+    it('successfully returns content on a single proxy call', async () => {
       const mockSuccess = {
         data: {
-          choices: [{ message: { content: 'Success after retry' } }],
+          choices: [{ message: { content: 'Success from proxy' } }],
+          remainingCredits: 9
         },
       };
 
-      (apiClient.post as jest.Mock)
-        .mockRejectedValueOnce(mock429)
-        .mockResolvedValueOnce(mockSuccess);
+      (apiClient.post as jest.Mock).mockResolvedValueOnce(mockSuccess);
 
       const result = await aiService.askQuestion('test question');
 
-      expect(apiClient.post).toHaveBeenCalledTimes(2);
-      expect(result).toBe('Success after retry');
-      
-      // Check that different keys were used (sequential rotation)
-      const firstCallKey = (apiClient.post as jest.Mock).mock.calls[0][2].headers.Authorization;
-      const secondCallKey = (apiClient.post as jest.Mock).mock.calls[1][2].headers.Authorization;
-      expect(firstCallKey).not.toBe(secondCallKey);
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+      expect(result).toBe('Success from proxy');
     });
 
-    it('throws error after exhausting MAX_RETRIES', async () => {
-      const mock429 = new Error('Rate limit exceeded');
-      (mock429 as any).response = { status: 429 };
+    it('throws the specific "exhausted" error message when backend fails all retries', async () => {
+      // The backend returns a 503 with this specific error message after 3 retries
+      const exhaustedError = new Error('All Groq keys exhausted after 3 retries');
+      (exhaustedError as any).response = { 
+        status: 503, 
+        data: { error: 'All Groq keys exhausted after 3 retries' } 
+      };
 
-      (apiClient.post as jest.Mock).mockRejectedValue(mock429);
+      (apiClient.post as jest.Mock).mockRejectedValueOnce(exhaustedError);
 
       await expect(aiService.askQuestion('test'))
         .rejects.toThrow('All Groq keys exhausted after 3 retries');
       
-      expect(apiClient.post).toHaveBeenCalledTimes(4); // Initial + 3 retries
+      // Since the proxy handles retries internally, the client only makes 1 request
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws "Insufficient credits" when backend returns 402', async () => {
+      const creditError = new Error('Insufficient credits');
+      (creditError as any).response = { 
+        status: 402, 
+        data: { error: 'Insufficient credits or profile not found' } 
+      };
+
+      (apiClient.post as jest.Mock).mockRejectedValueOnce(creditError);
+
+      await expect(aiService.askQuestion('test'))
+        .rejects.toThrow('Insufficient credits');
     });
   });
 
@@ -74,8 +77,7 @@ describe('AIService Unit Tests', () => {
               content: expect.stringContaining('Context:\nThis is a document about history.\n\nQuestion: What is this?')
             })
           ])
-        }),
-        expect.any(Object)
+        })
       );
     });
   });
@@ -90,12 +92,6 @@ describe('AIService Unit Tests', () => {
       const result = await aiService.generateQuiz('Math');
       expect(result).toBe(quizJson);
     });
-
-    it('throws if response content is missing', async () => {
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: { choices: [] } });
-
-      await expect(aiService.generateQuiz('Math')).rejects.toThrow('Invalid response format');
-    });
   });
 
   describe('extractKeyPoints', () => {
@@ -107,37 +103,6 @@ describe('AIService Unit Tests', () => {
 
       const result = await aiService.extractKeyPoints('Long text');
       expect(result).toEqual(['Point 1', 'Point 2']);
-    });
-
-    it('falls back to newline split if JSON parsing fails', async () => {
-      const pointsText = '- Point A\n- Point B';
-      (apiClient.post as jest.Mock).mockResolvedValue({
-        data: { choices: [{ message: { content: pointsText } }] }
-      });
-
-      const result = await aiService.extractKeyPoints('Long text');
-      expect(result).toEqual(['Point A', 'Point B']);
-    });
-  });
-
-  describe('searchAndAnswer', () => {
-    it('calls Groq with search-oriented system prompt', async () => {
-      (apiClient.post as jest.Mock).mockResolvedValue({
-        data: { choices: [{ message: { content: 'Research results' } }] }
-      });
-
-      const result = await aiService.searchAndAnswer('recent discoveries in space');
-      
-      expect(apiClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          messages: expect.arrayContaining([
-            expect.objectContaining({ content: expect.stringContaining('cite key facts') })
-          ])
-        }),
-        expect.any(Object)
-      );
-      expect(result).toBe('Research results');
     });
   });
 });

@@ -192,11 +192,8 @@ function ExtractTextScreen() {
       // Consume a credit for the transaction (Demonstrating global state)
       consumeCredit();
       
-      // Use the production-ready service layer
-      const extractedStr = await ocrService.extractTextFromImage(
-        selectedImage.base64, 
-        selectedImage.mimeType
-      );
+      // Use the production-ready service layer with built-in compression
+      const extractedStr = await ocrService.processAndExtract(selectedImage.uri);
       
       setProgress(100);
       setStatusMessage('Text extracted successfully!');

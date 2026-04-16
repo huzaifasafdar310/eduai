@@ -17,7 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useFileHandoff } from '@/context/FileHandoffContext';
+import { useApp, useFileHandoff } from '@/context/AppContext';
 import Animated, {
   Easing,
   interpolate,

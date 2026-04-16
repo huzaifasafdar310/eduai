@@ -9,133 +9,135 @@ export type QuizQuestion = {
 };
 
 /**
- * Service specifically for Language Models (Groq).
- * Handles multi-key rotation, retries, and high-level educational task abstractions.
+ * 🤖 AIService: Production-Grade AI Orchestrator
+ * Communicates with the secure backend proxy.
+ * Ensures strict error handling for testing and UI feedback.
  */
 class AIService {
   /**
-   * Core proxy call wrapper
+   * Internal wrapper for backend AI calls
    */
-  private async callGroq(
-    messages: any[],
-    model: string,
-    temperature: number
-  ): Promise<string> {
+  private async callBackend(
+    endpoint: string,
+    payload: any
+  ): Promise<{ content: string; remainingCredits: number }> {
     try {
-      const response = await apiClient.post('/api/ai/chat', {
-        model,
-        messages,
-        temperature,
-      });
-
+      const response = await apiClient.post(endpoint, payload);
+      
       const content = response.data?.choices?.[0]?.message?.content;
+      const remainingCredits = response.data?.remainingCredits;
+
       if (!content) {
         throw new Error('Invalid response format from AI proxy.');
       }
-      return content;
+
+      return { content, remainingCredits };
     } catch (error: any) {
+      // Re-throw errors from the interceptor (which includes backend error messages)
+      // This ensures "All Groq keys exhausted" propagates correctly to tests and UI.
       throw error;
     }
   }
 
   /**
-   * Summarizes text based on a specific depth
+   * Summarizes text
    */
   public async summarizeDocument(text: string, depth: SummaryDepth): Promise<string> {
     let systemPrompt = 'Summarize the following text. Make it comprehensive.';
     if (depth === 'quick') systemPrompt = 'Provide a brief, 3-sentence summary of the main points.';
-    if (depth === 'detailed') systemPrompt = 'Provide a structured, detailed summary with bullet points summarizing the core information.';
+    if (depth === 'detailed') systemPrompt = 'Provide a structured, detailed summary with bullet points.';
 
-    return this.callGroq(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: text }
-      ],
-      'mixtral-8x7b-32768',
-      0.3
-    );
+    const { content } = await this.callBackend('/api/ai/chat', {
+       model: 'mixtral-8x7b-32768',
+       messages: [
+         { role: 'system', content: systemPrompt },
+         { role: 'user', content: text }
+       ],
+       temperature: 0.3
+    });
+    return content;
   }
 
   /**
-   * General purpose academic assistant question answering
+   * General purpose academic assistant
    */
   public async askQuestion(question: string, context?: string): Promise<string> {
     const systemPrompt = 'You are a helpful educational assistant. Answer clearly and concisely.';
     const userContent = context ? `Context:\n${context}\n\nQuestion: ${question}` : question;
 
-    return this.callGroq(
-      [
+    const { content } = await this.callBackend('/api/ai/chat', {
+      model: 'llama-3.3-70b-versatile',
+      messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent }
       ],
-      'llama-3.3-70b-versatile',
-      0.7
-    );
+      temperature: 0.7
+    });
+    return content;
   }
 
   /**
-   * Generates a quiz in a structured JSON format
+   * Generates quizzes
    */
   public async generateQuiz(topic: string, numQuestions: number = 5): Promise<string> {
-    const systemPrompt = 'You are an elite quiz generator. Return ONLY a valid JSON array of objects. Do not include markdown formatting, preambles, or explanations. Each object must follow this schema: { "question": "string", "options": ["string", "string", "string", "string"], "answer": "The exact string of the correct option" }';
+    const systemPrompt = 'Generate a quiz in valid JSON format. Return ONLY a JSON array.';
     const userMessage = `Generate ${numQuestions} multiple choice questions about: ${topic}`;
 
-    return this.callGroq(
-      [
+    const { content } = await this.callBackend('/api/ai/chat', {
+      model: 'llama-3.3-70b-versatile',
+      messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
       ],
-      'llama-3.3-70b-versatile',
-      0.5
-    );
+      temperature: 0.5
+    });
+    return content;
   }
 
   /**
-   * Educational search surrogate using Groq's training knowledge
-   * @remarks This uses Groq's training knowledge instead of live web search. For real-time data, a search API integration would be needed.
-   */
-  public async searchAndAnswer(query: string): Promise<string> {
-    const systemPrompt = 'You are a knowledgeable educational assistant. Answer the question using your training knowledge. Be thorough and cite key facts.';
-
-    return this.callGroq(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query }
-      ],
-      'llama-3.3-70b-versatile',
-      0.6
-    );
-  }
-
-  /**
-   * Extracts key structured points from a document
+   * Extract Key Points
    */
   public async extractKeyPoints(text: string): Promise<string[]> {
-    const systemPrompt = 'Extract the most important key points from the following text. Return ONLY a valid JSON array of strings. No markdown, no numbering, no explanations.';
+    const systemPrompt = 'Extract key points as a valid JSON array of strings.';
 
     try {
-      const response = await this.callGroq(
-        [
+      const { content } = await this.callBackend('/api/ai/chat', {
+        model: 'mixtral-8x7b-32768',
+        messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: text }
         ],
-        'mixtral-8x7b-32768',
-        0.3
-      );
+        temperature: 0.3
+      });
 
-      // Attempt to parse JSON
-      const cleanedResponse = response.replace(/```json|```/g, '').trim();
+      const cleaned = content.replace(/```json|```/g, '').trim();
       try {
-        const parsed = JSON.parse(cleanedResponse);
+        const parsed = JSON.parse(cleaned);
         if (Array.isArray(parsed)) return parsed;
       } catch (e) {
-        // Fallback to newline split if JSON parsing fails
-        return response.split('\n').map(line => line.replace(/^[-*•]\s+/, '').trim()).filter(line => line.length > 0);
+        return content.split('\n').filter(l => l.trim().length > 0);
       }
       return [];
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Educational search
+   */
+  public async searchAndAnswer(query: string): Promise<string> {
+    const systemPrompt = 'Answer using your research knowledge. Be thorough and cite key facts.';
+
+    const { content } = await this.callBackend('/api/ai/chat', {
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: query }
+      ],
+      temperature: 0.6
+    });
+    return content;
   }
 }
 
