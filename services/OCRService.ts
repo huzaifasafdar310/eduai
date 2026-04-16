@@ -5,56 +5,26 @@ import { apiClient } from './apiClient';
  * Abstracts the OCR.Space logic completely from the ui.
  */
 class OCRService {
-  private readonly OCR_API_URL = 'https://api.ocr.space/parse/image';
-  private readonly OCR_KEY: string;
-
-  constructor() {
-    const key = process.env.EXPO_PUBLIC_OCR_KEY;
-    if (!key || key === 'helloworld') {
-      console.warn('[OCRService] Warning: EXPO_PUBLIC_OCR_KEY is missing or using demo key.');
-    }
-    this.OCR_KEY = key || '';
-  }
-
   /**
-   * Primary extraction logic.
+   * Primary extraction logic via proxy.
    * @param base64Data Raw image Base64 data block without the prefix descriptor.
    * @param mimeType Image filetype.
    */
   public async extractTextFromImage(base64Data: string, mimeType: string = 'image/jpeg'): Promise<string> {
-    const prefixedBase64 = `data:${mimeType};base64,${base64Data}`;
-    
-    if (!this.OCR_KEY || this.OCR_KEY === '') {
-      throw new Error('OCR API Key is missing. Please set EXPO_PUBLIC_OCR_KEY in your environment.');
-    }
-
-    // Using FormData is required by the OCR.space standard
-    const formData = new FormData();
-    formData.append('base64Image', prefixedBase64);
-    formData.append('apikey', this.OCR_KEY);
-    formData.append('language', 'eng');
-    formData.append('OCREngine', '2'); // Fast Engine
-    
     try {
-      const response = await fetch(this.OCR_API_URL, {
-        method: 'POST',
-        body: formData,
+      const response = await apiClient.post('/api/ocr/extract', {
+        base64Data,
+        mimeType,
       });
-      const data = await response.json();
       
-      if (data.IsErroredOnProcessing) {
-         throw new Error(data.ErrorMessage ? data.ErrorMessage.join(', ') : 'Unknown OCR Engine error');
-      }
-      
-      const parts = data.ParsedResults?.map((r: any) => r.ParsedText) || [];
-      const text = parts.join('\n').trim();
+      const text = response.data?.text;
       
       if (!text) {
          return 'No text recovered from OCR engine.';
       }
       return text;
     } catch (error: any) {
-      throw new Error(`OCR Processing failed: ${error.message}`);
+      throw new Error(`OCR Processing failed via proxy: ${error.message}`);
     }
   }
 }

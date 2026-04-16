@@ -5,9 +5,11 @@ import axios from 'axios';
  * You can easily hook in interceptors here for Auth tokens in the future.
  */
 export const apiClient = axios.create({
+  baseURL: process.env.EXPO_PUBLIC_BACKEND_URL,
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
+    'x-app-token': process.env.EXPO_PUBLIC_APP_TOKEN,
   },
 });
 

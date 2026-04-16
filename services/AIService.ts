@@ -13,87 +13,27 @@ export type QuizQuestion = {
  * Handles multi-key rotation, retries, and high-level educational task abstractions.
  */
 class AIService {
-  private readonly GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-  private readonly MAX_RETRIES = 3;
-  
-  private apiKeys: string[] = [];
-  private currentKeyIndex: number = 0;
-
-  constructor() {
-    // Collect individual keys
-    const individualKeys = [
-      process.env.EXPO_PUBLIC_GROQ_API_KEY_1 || '',
-      process.env.EXPO_PUBLIC_GROQ_API_KEY_2 || '',
-      process.env.EXPO_PUBLIC_GROQ_API_KEY_3 || '',
-    ];
-
-    // Collect bulk keys from comma-separated env
-    const bulkKeys = (process.env.EXPO_PUBLIC_GROQ_API_KEYS || '').split(',').map(k => k.trim());
-
-    // Merge, filter empty, and deduplicate
-    this.apiKeys = Array.from(new Set([...individualKeys, ...bulkKeys])).filter(key => key !== '');
-  }
-
   /**
-   * Sequential round-robin key selection
-   */
-  private getNextKey(): string {
-    if (this.apiKeys.length === 0) {
-      throw new Error('API Configuration Error: No Groq API keys present in environment variables.');
-    }
-    const key = this.apiKeys[this.currentKeyIndex];
-    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
-    return key;
-  }
-
-  /**
-   * Core Groq API call wrapper with rotation and retry logic
+   * Core proxy call wrapper
    */
   private async callGroq(
-    messages: any[], 
-    model: string, 
-    temperature: number, 
-    retries: number = 0
+    messages: any[],
+    model: string,
+    temperature: number
   ): Promise<string> {
-    const key = this.getNextKey();
-
     try {
-      const response = await apiClient.post(
-        this.GROQ_API_URL,
-        {
-          model,
-          messages,
-          temperature,
-        },
-        {
-          headers: { Authorization: `Bearer ${key}` },
-        }
-      );
+      const response = await apiClient.post('/api/ai/chat', {
+        model,
+        messages,
+        temperature,
+      });
 
       const content = response.data?.choices?.[0]?.message?.content;
       if (!content) {
-        throw new Error('Invalid response format from Groq provider.');
+        throw new Error('Invalid response format from AI proxy.');
       }
       return content;
     } catch (error: any) {
-      // Rotation & Retry Logic for Rate Limits (429) or Network Errors
-      const isRateLimit = error.response?.status === 429 || error.message?.includes('429');
-      const isNetworkError = !error.response || error.code === 'ECONNABORTED';
-
-      if ((isRateLimit || isNetworkError) && retries < this.MAX_RETRIES) {
-        const nextRetry = retries + 1;
-        const waitTime = 500 * nextRetry;
-        
-        console.warn(`Groq Error (Attempt ${nextRetry}/${this.MAX_RETRIES}): ${error.message}. Rotating key and retrying in ${waitTime}ms...`);
-        
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        return this.callGroq(messages, model, temperature, nextRetry);
-      }
-
-      if (retries >= this.MAX_RETRIES) {
-        throw new Error(`All Groq keys exhausted after ${this.MAX_RETRIES} retries. Last error: ${error.message}`);
-      }
-
       throw error;
     }
   }
